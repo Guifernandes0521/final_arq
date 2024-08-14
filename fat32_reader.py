@@ -33,51 +33,24 @@ class ReadFat():
 
 dump = ReadFat('all')
 
-# getting boot sector
 BPB_BytsPerSec = dump.get_bytes(11,2,inteiro=True)
-#print('BPB_BytsPerSec',BPB_BytsPerSec)
 BPB_RootEntCnt = dump.get_bytes(17,2,inteiro=True)
-#print('BPB_RootEntCnt',BPB_RootEntCnt)
 BPB_SecPerClus = dump.get_bytes(13,1,inteiro=True)
-#print('BPB_SecPerClus',BPB_SecPerClus)
+BPB_FATSz16 = dump.get_bytes(22,2,inteiro=True)
+BPB_TotSec16 = dump.get_bytes(19,2,inteiro=True)
+BPB_ResvdSecCnt = dump.get_bytes(14,2,inteiro=True)
+BPB_NumFATs = dump.get_bytes(16,1,inteiro=True)
 
 ClusterSize = BPB_BytsPerSec * BPB_SecPerClus
-#the size of the cluster is 2048 bytes
-#print('ClusterSize',ClusterSize)
-
-RootDirSectors = round(((BPB_RootEntCnt * 32) + (BPB_BytsPerSec - 1)) / BPB_BytsPerSec)
-#print('RootDirSectors', RootDirSectors)
-
-BPB_FATSz16 = dump.get_bytes(22,2,inteiro=True)
-#print('BPB_FATSz16',BPB_FATSz16)
-BPB_TotSec16 = dump.get_bytes(19,2,inteiro=True)
-#print('BPB_TotSec16',BPB_TotSec16)
-BPB_ResvdSecCnt = dump.get_bytes(14,2,inteiro=True)
-#print('BPB_ResvdSecCnt',BPB_ResvdSecCnt)
-BPB_NumFATs = dump.get_bytes(16,1,inteiro=True)
-#print('BPB_NumFATs',BPB_NumFATs)
-
-FATSz = BPB_FATSz16
-#print('FATSz',FATSz)
+RootDirSectors = BPB_RootEntCnt*32 // BPB_BytsPerSec
 TotSec = BPB_TotSec16
 DataSec = TotSec - (BPB_ResvdSecCnt + (BPB_NumFATs * FATSz) + RootDirSectors);
-#print('DataSec',DataSec)
-# considering the CountOfClusters, this is FAT12
+# Count of clusters determines the size of the FAT
 CountofClusters = DataSec // BPB_SecPerClus
-
-#print('count of clusters', CountofClusters)
-SectorsOccupiedByRoot = (BPB_RootEntCnt * 32) // BPB_BytsPerSec
-#print('SectorsOccupiedByRoot',SectorsOccupiedByRoot)
 FirstRootDirSecNum = BPB_ResvdSecCnt + (BPB_NumFATs * BPB_FATSz16)
-#print('FirstRootDirSecNum',FirstRootDirSecNum)
 FirstRootDirSecNumOffset = FirstRootDirSecNum * BPB_BytsPerSec
-content_of_root_dir = dump.get_bytes(FirstRootDirSecNumOffset, 10, string=True)
-
-# first data sector
 FirstDataSector = BPB_ResvdSecCnt + (BPB_NumFATs * FATSz) + RootDirSectors
 FirstDataSectorOffset = FirstDataSector * BPB_BytsPerSec
-print('FirstDataSectorOFFSET',hex(FirstDataSectorOffset))
-ATTR_LONG_NAME = 0xf
 
 # there are 8 entries of the root directory being used
 for i in range(8):
@@ -98,7 +71,4 @@ for i in range(8):
 		
 		offset_of_file = FirstSectorofCluster * BPB_BytsPerSec 
 		
-		print(hex(offset_of_file))
-		print('conteudo do arquivo', dump.get_bytes(offset_of_file, 2048, string=True))
-		print('#########################################################')
-	
+		print('conteudo do arquivo', dump.get_bytes(offset_of_file, 2048, string=True))	
