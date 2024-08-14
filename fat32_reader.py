@@ -35,44 +35,70 @@ dump = ReadFat('all')
 
 # getting boot sector
 BPB_BytsPerSec = dump.get_bytes(11,2,inteiro=True)
-print('BPB_BytsPerSec',BPB_BytsPerSec)
+#print('BPB_BytsPerSec',BPB_BytsPerSec)
 BPB_RootEntCnt = dump.get_bytes(17,2,inteiro=True)
-print('BPB_RootEntCnt',BPB_RootEntCnt)
+#print('BPB_RootEntCnt',BPB_RootEntCnt)
 BPB_SecPerClus = dump.get_bytes(13,1,inteiro=True)
-print('BPB_SecPerClus',BPB_SecPerClus)
+#print('BPB_SecPerClus',BPB_SecPerClus)
+
 ClusterSize = BPB_BytsPerSec * BPB_SecPerClus
-print('ClusterSize',ClusterSize)
-# getting root_dir_sector
+#the size of the cluster is 2048 bytes
+#print('ClusterSize',ClusterSize)
+
 RootDirSectors = round(((BPB_RootEntCnt * 32) + (BPB_BytsPerSec - 1)) / BPB_BytsPerSec)
-print('RootDirSectors', RootDirSectors)
+#print('RootDirSectors', RootDirSectors)
 
-# explanations so far
 BPB_FATSz16 = dump.get_bytes(22,2,inteiro=True)
-print('BPB_FATSz16',BPB_FATSz16)
+#print('BPB_FATSz16',BPB_FATSz16)
 BPB_TotSec16 = dump.get_bytes(19,2,inteiro=True)
-print('BPB_TotSec16',BPB_TotSec16)
+#print('BPB_TotSec16',BPB_TotSec16)
 BPB_ResvdSecCnt = dump.get_bytes(14,2,inteiro=True)
-print('BPB_ResvdSecCnt',BPB_ResvdSecCnt)
+#print('BPB_ResvdSecCnt',BPB_ResvdSecCnt)
 BPB_NumFATs = dump.get_bytes(16,1,inteiro=True)
-print('BPB_NumFATs',BPB_NumFATs)
+#print('BPB_NumFATs',BPB_NumFATs)
 
-# explanations so far
 FATSz = BPB_FATSz16
-print('FATSz',FATSz)
+#print('FATSz',FATSz)
 TotSec = BPB_TotSec16
 DataSec = TotSec - (BPB_ResvdSecCnt + (BPB_NumFATs * FATSz) + RootDirSectors);
-print('DataSec',DataSec)
+#print('DataSec',DataSec)
+# considering the CountOfClusters, this is FAT12
 CountofClusters = DataSec // BPB_SecPerClus
-print('count of clusters', CountofClusters)
-# windows will consider this unit as FAT12, but it was formatted as FAT16
+
+#print('count of clusters', CountofClusters)
 SectorsOccupiedByRoot = (BPB_RootEntCnt * 32) // BPB_BytsPerSec
-print('SectorsOccupiedByRoot',SectorsOccupiedByRoot)
+#print('SectorsOccupiedByRoot',SectorsOccupiedByRoot)
 FirstRootDirSecNum = BPB_ResvdSecCnt + (BPB_NumFATs * BPB_FATSz16)
-print('FirstRootDirSecNum',FirstRootDirSecNum)
+#print('FirstRootDirSecNum',FirstRootDirSecNum)
 FirstRootDirSecNumOffset = FirstRootDirSecNum * BPB_BytsPerSec
 content_of_root_dir = dump.get_bytes(FirstRootDirSecNumOffset, 10, string=True)
-print('content_of_root_dir',content_of_root_dir)
 
-for i in range(10):
-	print('content_of_root_dir',dump.get_bytes(FirstRootDirSecNumOffset + i*32, 32, string=True))
-	print('content_of_root_dir_hex',' '.join(dump.get_bytes(FirstRootDirSecNumOffset + i*32, 32)))
+# first data sector
+FirstDataSector = BPB_ResvdSecCnt + (BPB_NumFATs * FATSz) + RootDirSectors
+FirstDataSectorOffset = FirstDataSector * BPB_BytsPerSec
+print('FirstDataSectorOFFSET',hex(FirstDataSectorOffset))
+ATTR_LONG_NAME = 0xf
+
+# there are 8 entries of the root directory being used
+for i in range(8):
+	short_name = dump.get_bytes(FirstRootDirSecNumOffset + i*32, 11, string=True)
+	dir_attr = dump.get_bytes(FirstRootDirSecNumOffset + i*32 + 11, 1, inteiro=True)
+	# 0xf = 15
+	if dir_attr == 15 or dir_attr == 8:
+		LDIR_Name1 = dump.get_bytes(FirstRootDirSecNumOffset + i*32 + 1, 10, string=True)
+		LDIR_Name2 = dump.get_bytes(FirstRootDirSecNumOffset + i*32 + 14, 12, string=True)
+		LDIR_Name3 = dump.get_bytes(FirstRootDirSecNumOffset + i*32 + 28, 4, string=True)
+
+	else:
+		DIR_FstClusLO = dump.get_bytes(FirstRootDirSecNumOffset + i*32 + 26, 2, inteiro=True)
+		print(hex(DIR_FstClusLO))
+		#DIR_FstClusLO = hex(DIR_FstClusLO) & 0xffff
+		print('DIR_FstClusLO',DIR_FstClusLO)
+		FirstSectorofCluster = ((DIR_FstClusLO - 2) * BPB_SecPerClus) + FirstDataSector
+		
+		offset_of_file = FirstSectorofCluster * BPB_BytsPerSec 
+		
+		print(hex(offset_of_file))
+		print('conteudo do arquivo', dump.get_bytes(offset_of_file, 2048, string=True))
+		print('#########################################################')
+	
